@@ -248,8 +248,6 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
     Serial.write(registerByte[i]);
     delay(2);  // Give the computer some time to catch up
   }
-  Serial.write(0x4);    // An end of transmission byte signals...well...the end of a transmission
-  
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
