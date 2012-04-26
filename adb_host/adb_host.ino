@@ -65,8 +65,8 @@ void loop() {
          The default action should be to keep ADB_pin high.
       */
       case 'a':
-        sendCommandByte(B00111111);  // Device responds with Register 3 data
-        relayADB();                  // Sends Register 3 data over serial port
+        sendCommand(0x3, 0x3, 0x0);  // Tell the mouse (add_3) to talk (command_3) contents of register zero (reg_0)
+        relayADB();
       default:
         setBusAsOutput();
         break;
@@ -156,14 +156,14 @@ void setBusAsInput() {  // Set the ADB bus as an input (reading data from periph
 
 // User-friendly version of sendCommandByte()
 // ! WARNING - DON'T PASS INVALID ARGUMENTS INTO THIS FUNCTION!
-void sendCommand(byte deviceAddr, byte command, byte register) {
+void sendCommand(byte deviceAddr, byte command, byte reg) {
   // Make a temporary byte, and form it by bit-shifting the device address, command, and register
   byte tempByte = B00000000;                             // Ex.  tempByte = 00000000
   tempByte = deviceAddr;                                 //      tempByte = 00000011, deviceAddr = B0011
   tempByte <<= 2;  // Commands are 2 bits long           //      tempByte = 00001100
   tempByte += command;                                   //      tempByte = 00001111, command = B11
   tempByte <<= 2;  // Registers are 2 bits long          //      tempByte = 00111100
-  tempByte += register;                                  //      tempByte = 00111101, register = B01  
+  tempByte += reg;                                       //      tempByte = 00111101, register = B01  
   
   // Pass the temporary byte into sendCommandByte()
   sendCommandByte(tempByte);
