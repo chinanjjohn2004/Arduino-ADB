@@ -19,13 +19,14 @@
  * 
  *   v1.0 - Transform this program into a library for ADB communication
  * 
- * Current status: An Arduino cannot act as a fully-functional ADB host. The 1-kilobyte of SRAM
- *                 makes data buffering impossible for more than 1 snooped byte with an acceptable
- *                 resolution.
+ * Current status: in development.
+ * 
  */
 
 /***** Declarations *****/
 const uint8_t ADB_pin = 2;  // Connect the ADB line to the Arduino's pin 2
+uint8_t registerBitDuration[66];  // Data recieved from a peripheral's register. First element is start-bit, last element is stop-bit.
+
 
 /***** Setup *****/
 void setup() {
@@ -181,19 +182,20 @@ void relayADB() {  // Relays the ADB over the serial port
   // Set the ADB_pin to an input
   setBusAsInput();
   
-  // Relay all bus information over the serial line (for all 8 theoretical bytes)
-  // Serial.print takes too much time, so we'll read into an array
-  bool a[150];               // Where the return data is stored
-  for (uint16_t i = 0; i < 150; i++) {
-    a[i] = digitalRead(ADB_pin);  // Saves time if printed via serial later
-    delayMicroseconds(20);  // Keep in mind, the above instructions take time to execute
-  }
-  for (uint16_t i = 0; i < 150; i++) {  // it might be quicker to print this later
-    Serial.print(a[i]);
-  }
-  Serial.println("");  // convienience line for multiple tries
+  // Read the ADB pulse durations from the peripheral into the registerBit[] array
+  // We'll convert the durations into bits during a time-insensitive moment, later on.
+  for (uint8_t i = 0; i < 66; i++) {
+    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 200);
+  }  // Everything after this is time-insensitive
   
-  setBusAsOutput();  // Put the bus back the way it was (as a HIGH output)
+  // Give me an idea of what the durations look like
+  for (uint8_t i = 0; i < 66; i++) {
+    Serial.print(registerBitDuration[i]);
+    Serial.print(' ');
+  }
+  Serial.println("");
+  
+  setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
