@@ -1,5 +1,5 @@
 /* Arduino ADB Host
- * April 25, 2012 by Davis D. Remmel
+ * April 25, 2012 by Davis D. Remmel (Copyright 2012 Davis D. Remmel)
  * A program to simulate an Apple Desktop Bus host, so ADB peripherals may
  * be used with non-native hardware.
  * 
@@ -19,6 +19,9 @@
  * 
  *   v1.0 - Transform this program into a library for ADB communication
  * 
+ * Current status: An Arduino cannot act as a fully-functional ADB host. The 1-kilobyte of SRAM
+ *                 makes data buffering impossible for more than 1 snooped byte with an acceptable
+ *                 resolution.
  */
 
 /***** Declarations *****/
