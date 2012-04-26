@@ -1,7 +1,9 @@
 /* Arduino ADB Host
- * April 25, 2012 by Davis D. Remmel (Copyright 2012 Davis D. Remmel)
- * A program to simulate an Apple Desktop Bus host, so ADB peripherals may
- * be used with non-native hardware.
+ * April 25, 2012
+ * Copyright (c) 2012 Davis D. Remmel. All rights reserved.
+ * 
+ * Use an Arduino to act as a passthrough for communications between modern computers
+ * and old Apple Desktop Bus peripherals.
  * 
  * Usage:
  *   Wire a 4-pin mini-DIN connector to the Arduino. A pinout may be found on
@@ -9,8 +11,20 @@
  *   GND to the Arduino's GND, and the ADB wire to the Arduino's pin 2. Do not
  *   connect the PSW pin.
  * 
- *   The Arduino will listen via the serial port for commands. Commands are
- *   sent from the attached computer, to take some of the load off the Arduino.
+ *   The Arduino will listen via the serial port for a byte. This byte should be
+ *   pre-formed on the controlling computer before it is sent, because the Arduino
+ *   is a dumb device that does what it is commanded to do. When a byte is sent
+ *   from the computer over the serial line, the Arduino translates it to the Apple
+ *   Desktop Bus (ADB). Then, whatever the reply on the bus is from a peripheral,
+ *   that reply is translated to the serial line so it may be read by the computer.
+ *
+ *   The Arduino, when finished booting, will send 0x21 over the serial line to signal
+ *   that it's ready. Once the computer recognizes this, it may proceed to send a byte
+ *   which will be translated by the Arduino to the ADB. A very short while later, the
+ *   Arduino will reply with the peripheral's transmission: all eight bytes, even if
+ *   some of the bytes have no content (they are equal to 0x00). The transmission of
+ *   each byte is delayed by 2 milliseconds, so the computer has time to run a little
+ *   bit of storing code before reading the next byte.
  * 
  * Goals:
  *   v0.1 - Read from an ADB mouse and calculate position on a 640x480 virtual
@@ -19,8 +33,14 @@
  * 
  *   v1.0 - Transform this program into a library for ADB communication
  * 
- * Current status: in development.
- * 
+ * Current status: actively developed
+ *
+ * Restrictions:
+ *     - If you pass an invalid byte, you're gonna have a bad time.
+ *     - Want to use any part of this source code? Please, email me first at
+ *       davis@davisremmel.com
+ *     - The use of any part of this source code for commercial purposes is STRICTLY
+ *       PROHIBITED. If you'd like to use it personally, please email me.
  */
 
 /***** Declarations *****/
@@ -226,7 +246,7 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
     Serial.write(registerByte[i]);
-    Serial.write(0x1e);  // A record separator byte separates the bytes from a device register
+    delay(2);  // Give the computer some time to catch up
   }
   Serial.write(0x4);    // An end of transmission byte signals...well...the end of a transmission
   
