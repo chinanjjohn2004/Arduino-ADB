@@ -225,10 +225,10 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
-    Serial.print(registerByte[i], BIN);
-    Serial.print(' ');
+    Serial.write(registerByte[i]);
+    Serial.write(0x1e);  // A record separator byte separates the bytes from a device register
   }
-  Serial.println("");
+  Serial.write(0x4);    // An end of transmission byte signals...well...the end of a transmission
   
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
