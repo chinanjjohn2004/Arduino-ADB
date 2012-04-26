@@ -137,7 +137,7 @@ void setBusAsInput() {  // Set the ADB bus as an input (reading data from periph
 /******************************
  * Sending and recieving data *
  ******************************////////////////////////////////////////////////////////////////////
-
+/*
 // User-friendly version of sendCommandByte()
 // ! WARNING - DON'T PASS INVALID ARGUMENTS INTO THIS FUNCTION!
 void sendCommand(byte deviceAddr, byte command, byte reg) {
@@ -151,7 +151,7 @@ void sendCommand(byte deviceAddr, byte command, byte reg) {
   
   // Pass the temporary byte into sendCommandByte()
   sendCommandByte(tempByte);
-}
+}*/
 
 void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Location info is contained
                                          // within the byte. (See page 315 of AGttMFH)
