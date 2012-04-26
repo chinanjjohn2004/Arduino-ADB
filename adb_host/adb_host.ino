@@ -25,7 +25,11 @@
 
 /***** Declarations *****/
 const uint8_t ADB_pin = 2;  // Connect the ADB line to the Arduino's pin 2
-uint8_t registerBitDuration[66];  // Data recieved from a peripheral's register. First element is start-bit, last element is stop-bit.
+
+const uint8_t numReadRegBits = 66; // First element is start-bit, last element is stop-bit. Middle 64 are juicy.
+uint8_t registerBitDuration[numReadRegBits];  // Data recieved from a peripheral's register.
+boolean registerBit[64]; // Where the converted durations are stored.
+uint8_t registerByte[8];    // registerBit[] is converted to bytes and stored here. Can be 1 or 0.
 
 
 /***** Setup *****/
@@ -96,7 +100,7 @@ void ADBglobalReset() {
   digitalWrite(ADB_pin, LOW);
   delay(3);
   digitalWrite(ADB_pin, HIGH);
-  delay(5);  // Take it easy, give the line a rest
+  delay(5);  // Take it easy, give the line a rest. It woke up on the wrong side of the bed.
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -179,23 +183,54 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
 
 void relayADB() {  // Relays the ADB over the serial port
   
-  // Set the ADB_pin to an input
+  /* Set the ADB_pin to an input */
   setBusAsInput();
   
-  // Read the ADB pulse durations from the peripheral into the registerBit[] array
+  /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
-  for (uint8_t i = 0; i < 66; i++) {
+  for (uint8_t i = 0; i < numReadRegBits; i++) {
     registerBitDuration[i] = pulseIn(ADB_pin, LOW, 200);
-  }  // Everything after this is time-insensitive
+  }
+  setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
+  // <-- Everything after this is time-insensitive --> //
   
-  // Give me an idea of what the durations look like
-  for (uint8_t i = 0; i < 66; i++) {
-    Serial.print(registerBitDuration[i]);
+  /* Convert recorded durations to actual bits */
+  // Shift registerBitDuration[] left to get rid of the start-bit
+  for (uint8_t i = 0; i < 64; i++) {
+    registerBitDuration[i] = registerBitDuration[i+1];  // Copy desired bits into the first 64 elements
+  }
+  
+  // Convert durations to bits
+  for (uint8_t i = 0; i < 64; i++) {  // See page 313, Figure 8-13 of AGttMFH
+    if ((registerBitDuration[i] >= 30) && (registerBitDuration[i] <=40))  // 5us tolerance
+      registerBit[i] = 1;
+    else if ((registerBitDuration[i] >= 60) && (registerBitDuration[i] <=70))
+      registerBit[i] = 0;
+  }
+  
+  // Convert register bits into pure bytes
+  for (uint8_t a = 0; a < 8; a++) {  // a is the byte number
+    // Write the bits to a temporary byte by shifting the register bit array into it
+    byte tempByte = B00000000;
+    for (uint8_t bitCount = ((a+1)*8)-8; bitCount < ((a+1)*8); bitCount++) {  // Calculates array location based on current byte loop count
+      tempByte += registerBit[bitCount];  // Ex. tempByte = 00000001
+      tempByte <<= 1;                     //     tempByte = 00000010
+                                          //          ..loops..
+                                          //     tempByte = 00000010
+                                          //     tempByte = 00000100 .. until byte fills (8 bit counts)
+    }
+    
+    // Assign the temporary byte's value to the real byte
+    registerByte[a] = tempByte;
+  }
+  
+  // Print the pure bytes for me
+  for (uint8_t i = 0; i < 8; i++) {
+    Serial.print(registerByte[i], BIN);
     Serial.print(' ');
   }
   Serial.println("");
   
-  setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
