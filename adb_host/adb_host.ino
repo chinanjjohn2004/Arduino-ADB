@@ -37,40 +37,24 @@ void setup() {
   
   // Initialize the serial port
   Serial.begin(115200);
-  Serial.println("Serial communication activated");
   
   // Start the bus as an output
   setBusAsOutput();
-  Serial.println("ADB is at +5V");
   
   // Do a global reset so all devices are in vanilla mode
   ADBglobalReset();
-  Serial.println("Global reset initiated; devices have been set to defaults");
   
-  // Final call
-  Serial.println("Waiting for input");
+  // Send "all systems: go" byte
+  Serial.write(0x21);  // 0x2{1..4} is (ASCII) Device Control {1..4}
 }
 
 /***** Main Loop *****/
 void loop() {
-  
   // Wait for a command from the computer (over the serial port)
   if (Serial.available() > 0) {
-    int inByte = Serial.read();  // inByte is sent from the computer
-    switch (inByte) {
-      /*
-         If 'a' is recieved, send the contents of mouse register 3 over the
-         serial port.
-         
-         The default action should be to keep ADB_pin high.
-      */
-      case 'a':
-        sendCommand(0x3, 0x3, 0x0);  // Tell the mouse (add_3) to talk (command_3) contents of register zero (reg_0)
-        relayADB();
-      default:
-        setBusAsOutput();
-        break;
-    }
+    byte inByte = Serial.read();  // inByte is sent from the computer
+    sendCommandByte(inByte);      // and sent over the ADB.
+    relayADB();                   // Then, we listen on the computer for a response from the ADB.
   }
 }
 
