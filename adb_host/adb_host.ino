@@ -154,8 +154,23 @@ void setBusAsInput() {  // Set the ADB bus as an input (reading data from periph
  * Sending and recieving data *
  ******************************////////////////////////////////////////////////////////////////////
 
+// User-friendly version of sendCommandByte()
+// ! WARNING - DON'T PASS INVALID ARGUMENTS INTO THIS FUNCTION!
+void sendCommand(byte deviceAddr, byte command, byte register) {
+  // Make a temporary byte, and form it by bit-shifting the device address, command, and register
+  byte tempByte = B00000000;                             // Ex.  tempByte = 00000000
+  tempByte = deviceAddr;                                 //      tempByte = 00000011, deviceAddr = B0011
+  tempByte <<= 2;  // Commands are 2 bits long           //      tempByte = 00001100
+  tempByte += command;                                   //      tempByte = 00001111, command = B11
+  tempByte <<= 2;  // Registers are 2 bits long          //      tempByte = 00111100
+  tempByte += register;                                  //      tempByte = 00111101, register = B01  
+  
+  // Pass the temporary byte into sendCommandByte()
+  sendCommandByte(tempByte);
+}
+
 void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Location info is contained
-                                     // within the byte. (See page 315 of AGttMFH)
+                                         // within the byte. (See page 315 of AGttMFH)
 
   /* Deconstruct the word-byte into bits, and store in an array */
   boolean binaryBoolArray[8];        // Store our binary values here. The rightmost (lowest) bit is stored in [7].
@@ -181,7 +196,7 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
   ADBstartstopBit();
 }
 
-void relayADB() {  // Relays the ADB over the serial port
+void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Set the ADB_pin to an input */
   setBusAsInput();
@@ -224,7 +239,7 @@ void relayADB() {  // Relays the ADB over the serial port
     registerByte[a] = tempByte;
   }
   
-  // Print the pure bytes for me
+  /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
     Serial.print(registerByte[i], BIN);
     Serial.print(' ');
