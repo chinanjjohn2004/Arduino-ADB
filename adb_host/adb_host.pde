@@ -198,6 +198,20 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
   ADBstartstopBit();
 }
 
+                  ///////////////////////////////////////////
+
+/*
+ * WARNING! THERE'S A BIG-ASS BUG IN THIS FUNCTION!
+ *
+ * When the bits are read, there is a start bit at the beginning of the device's communication,
+ * and a stop bit when transmission ends. THIS FUNCTION ASSUMES THE DEVICE TRANSMITS 8 BYTES.
+ * Most of the time, however, it won't!
+ *
+ * So, this function needs to be re-worked to chop the start and end bits off the transmission,
+ * NOT off bits 0 and 65!
+ *
+ */
+
 void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Set the ADB_pin to an input */
