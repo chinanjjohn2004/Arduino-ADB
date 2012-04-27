@@ -46,7 +46,7 @@
 /***** Declarations *****/
 const uint8_t ADB_PIN = 2;  // Connect the ADB line to the Arduino's pin 2
 
-const uint8-t BITBUFFERSIZE = 100;
+const uint8-t BITBUFFERSIZE = 100;  // Minimum of 66 (to allow for 8 bytes of device data + 2 start/stop bits)
 uint8_t registerBitDuration[BITBUFFERSIZE];  // Data recieved from a peripheral's register.
 boolean registerBit[64]; // Where the converted durations are stored.
 uint8_t registerByte[8];    // registerBit[] is converted to bytes and stored here. Can be 1 or 0.
@@ -222,6 +222,8 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   // We'll convert the durations into bits during a time-insensitive moment, later on.
   for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {
     registerBitDuration[i] = pulseIn(ADB_PIN, LOW, 240);
+    // Some of these pulses could be zero at the beginning or end, so they will need to be cleaned
+    // before further processnig.
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
@@ -235,9 +237,9 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   // Convert durations to bits
   for (uint8_t i = 0; i < 64; i++) {  // See page 313, Figure 8-13 of AGttMFH
-    if ((registerBitDuration[i] >= 30) && (registerBitDuration[i] <=40))  // 5us tolerance
+    if ((registerBitDuration[i] >= 25) && (registerBitDuration[i] <=45))  // 5us tolerance
       registerBit[i] = 1;
-    else if ((registerBitDuration[i] >= 60) && (registerBitDuration[i] <=70))
+    else if ((registerBitDuration[i] >= 55) && (registerBitDuration[i] <=75))
       registerBit[i] = 0;
   }
   
