@@ -46,7 +46,8 @@
 /***** Declarations *****/
 const uint8_t ADB_pin = 2;  // Connect the ADB line to the Arduino's pin 2
 
-uint8_t registerBitDuration[66];  // Data recieved from a peripheral's register.
+const uint8-t BITBUFFERSIZE = 100;
+uint8_t registerBitDuration[BITBUFFERSIZE];  // Data recieved from a peripheral's register.
 boolean registerBit[64]; // Where the converted durations are stored.
 uint8_t registerByte[8];    // registerBit[] is converted to bytes and stored here. Can be 1 or 0.
 
@@ -219,7 +220,7 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
-  for (uint8_t i = 0; i < 66; i++) {
+  for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {
     registerBitDuration[i] = pulseIn(ADB_pin, LOW, 240);
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
