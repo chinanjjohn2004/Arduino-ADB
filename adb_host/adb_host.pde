@@ -49,7 +49,7 @@ const uint8_t ADB_PIN = 2;  // Connect the ADB line to the Arduino's pin 2
 const uint8-t BITBUFFERSIZE = 100;  // Minimum of 66 (to allow for 8 bytes of device data + 2 start/stop bits)
 uint8_t registerBitDuration[BITBUFFERSIZE];  // Data recieved from a peripheral's register.
 boolean registerBit[64]; // Where the converted durations are stored.
-uint8_t registerByte[8];    // registerBit[] is converted to bytes and stored here. Can be 1 or 0.
+byte registerByte[8];    // ADB device data is converted to bytes and stored here (can send max 8 bytes)
 
 
 /***** Setup *****/
@@ -229,36 +229,80 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   // <-- Everything after this is time-insensitive --> //
   
 //------------------------------------------------>
-  /* Convert recorded durations to actual bits */
-  // Shift registerBitDuration[] left to get rid of the start-bit
-  for (uint8_t i = 0; i < 64; i++) {
-    registerBitDuration[i] = registerBitDuration[i+1];  // Copy desired bits into the first 64 elements
-  }
-  
-  // Convert durations to bits
-  for (uint8_t i = 0; i < 64; i++) {  // See page 313, Figure 8-13 of AGttMFH
-    if ((registerBitDuration[i] >= 25) && (registerBitDuration[i] <=45))  // 5us tolerance
-      registerBit[i] = 1;
-    else if ((registerBitDuration[i] >= 55) && (registerBitDuration[i] <=75))
-      registerBit[i] = 0;
-  }
-  
-  // Convert register bits into pure bytes
-  for (uint8_t a = 0; a < 8; a++) {  // a is the byte number
-    // Write the bits to a temporary byte by shifting the register bit array into it
-    byte tempByte = B00000000;
-    for (uint8_t bitCount = ((a+1)*8)-8; bitCount < ((a+1)*8); bitCount++) {  // Calculates array location based on current byte loop count
-      tempByte += registerBit[bitCount];  // Ex. tempByte = 00000001
-      tempByte <<= 1;                     //     tempByte = 00000010
-                                          //          ..loops..
-                                          //     tempByte = 00000010
-                                          //     tempByte = 00000100 .. until byte fills (8 bit counts)
-    }
-    
-    // Assign the temporary byte's value to the real byte
-    registerByte[a] = tempByte;
-  }
-//--------------------------------------------------------->
+// New algorithm idea:
+//    1. Read the data into RAWDATA[]. (array names are ambiguous)
+//    2. What if the first bits timeout, so they are set equal to zero?
+//   2a. Convert the delay times recorded in RAWDATA[] to bit values. If ==35, =1. If ==65, =0.
+//       If ==else, =0. 
+//    3. Count to RAWDATA[index] where the first non-zero value occurs. It will be equal to one,
+//       because this is the start bit.
+//           (Example: RAWDATA[3] == 1; STARTBITINDEX = 3;) (RAWDATA[] == {0, 0, 0, 1, .. };)
+//    4. Count to RAWDATA[index] where the last non-zero value occurs (hint: count backwards).
+//       It will be equal to one, because this is the end bit.
+//           (Example: RAWDATA[20] == 1; ENDBITINDEX = 20;)
+//    5. Shift every value in RAWDATA[] STARTBITINDEX+1 places to the left, so RAWDATA[0] will be the
+//       first valuable bit in the data packet (the +1 will chop off the start bit).
+//           (Example: RAWDATA[i] = RAWDATA[i+STARTBITINDEX+1];)
+//    6. Adjust ENDBITINDEX by the amount we shifted left, because it now is too high.
+//           (Example: ENDBITINDEX = ENDBITINDEX - (STARTBITINDEX + 1);)
+//    7. Now, RAWDATA[0] holds the first bit of viable data. The last bit of viable data is held
+//       in RAWDATA[ENDBITINDEX-1].
+//    8. Knowing this, initialize VIABLEDATA[ENDBITINDEX-1] so it can't hold anything BUT our viable
+//       data.
+//    9. In a loop, copy RAWDATA[i] into VIABLEDATA[i], ENDBITINDEX amount of times.
+//           (Example: for (int i=0; i < ENDBITINDEX; i++) { VIABLEDATA[i] = RAWDATA[i]; } )
+//   10. VIABLEDATA[] is now completely filled with meaty bits.
+//   11. Find the number of bytes that are stored in VIABLEDATA[].
+//           (Example: VIABLEBYTES = ENDBITINDEX / 8;)  // ENDBITINDEX is also VIABLEBYTES.length!
+//   12. Convert the bits stored in VIABLEDATA[] into bytes, and store those bytes in registerByte[CURRENTBYTE].
+//           (Example:      for (int CURRENTBYTE = 0; CURRENTBYTE < VIABLEBYTES; CURRENTBYTE++) {
+//                          byte TEMPBYTE = 0;
+//                            for (int i = ((CURRENTBYTE+1)*8)-8; i < (CURRENTBYTE+1)*8; i++) {  // i = bit number depends on current byte
+//                              TEMPBYTE += VIABLEDATA[i];
+//                              TEMPBYTE <<= 1;
+//                            }
+//                          registerByte[CURRENTBYTE] = TEMPBYTE;
+//                          }
+//
+//
+
+//-----------------END NEW ALGORITHM--------------------->
+
+
+//--------------------------------------------->
+// ------ OLD ALGORITHM, DO NOT USE ----------->
+// -------------------------------------------->
+//
+//  /* Convert recorded durations to actual bits */
+//  // Shift registerBitDuration[] left to get rid of the start-bit
+//  for (uint8_t i = 0; i < 64; i++) {
+//    registerBitDuration[i] = registerBitDuration[i+1];  // Copy desired bits into the first 64 elements
+//  }
+//  
+//  // Convert durations to bits
+//  for (uint8_t i = 0; i < 64; i++) {  // See page 313, Figure 8-13 of AGttMFH
+//    if ((registerBitDuration[i] >= 25) && (registerBitDuration[i] <=45))  // 5us tolerance
+//      registerBit[i] = 1;
+//    else if ((registerBitDuration[i] >= 55) && (registerBitDuration[i] <=75))
+//      registerBit[i] = 0;
+//  }
+//  
+//  // Convert register bits into pure bytes
+//  for (uint8_t a = 0; a < 8; a++) {  // a is the byte number
+//    // Write the bits to a temporary byte by shifting the register bit array into it
+//    byte tempByte = B00000000;
+//    for (uint8_t bitCount = ((a+1)*8)-8; bitCount < ((a+1)*8); bitCount++) {  // Calculates array location based on current byte loop count
+//      tempByte += registerBit[bitCount];  // Ex. tempByte = 00000001
+//      tempByte <<= 1;                     //     tempByte = 00000010
+//                                          //          ..loops..
+//                                          //     tempByte = 00000010
+//                                          //     tempByte = 00000100 .. until byte fills (8 bit counts)
+//    }
+//    
+//    // Assign the temporary byte's value to the real byte
+//    registerByte[a] = tempByte;
+//  }
+//-----------------------END OLD ALGORITHM---------------------->
   
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
