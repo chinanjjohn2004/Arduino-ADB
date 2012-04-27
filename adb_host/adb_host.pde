@@ -206,17 +206,10 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
   for (uint8_t i = 0; i < 66; i++) {
-    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 120);
+    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 200);
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
-  
-  /* DEBUG */
-  for (int i = 0; i < 66; i++) {
-    Serial.print(registerBitDuration[i]);
-  }
-  Serial.println("");
-/* DEBUG */
   
   /* Convert recorded durations to actual bits */
   // Shift registerBitDuration[] left to get rid of the start-bit
@@ -251,7 +244,7 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
     Serial.print(registerByte[i], HEX);
-    Serial.print(' ');
+    Serial.print('\t');
 //    delay(5);  // Give the computer some time to catch up
   }
   Serial.println("");
