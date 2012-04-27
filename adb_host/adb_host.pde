@@ -46,8 +46,7 @@
 /***** Declarations *****/
 const uint8_t ADB_pin = 2;  // Connect the ADB line to the Arduino's pin 2
 
-const uint8_t numReadRegBits = 66; // First element is start-bit, last element is stop-bit. Middle 64 are juicy.
-uint8_t registerBitDuration[numReadRegBits];  // Data recieved from a peripheral's register.
+uint8_t registerBitDuration[66];  // Data recieved from a peripheral's register.
 boolean registerBit[64]; // Where the converted durations are stored.
 uint8_t registerByte[8];    // registerBit[] is converted to bytes and stored here. Can be 1 or 0.
 
@@ -186,8 +185,7 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
   ADBattention();
   ADBsync();
   
-  /* Send the bits over the ADB bus, ignoring the null terminator bit */
-  // this test will send them over the serial port to verify the code works
+  /* Send the command bits over the ADB bus */
   for (uint8_t i = 0; i < 8; i++) {
     if (binaryBoolArray[i]) {
       ADBtruePulse();
@@ -207,11 +205,18 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
-  for (uint8_t i = 0; i < numReadRegBits; i++) {
-    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 200);
+  for (uint8_t i = 0; i < 66; i++) {
+    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 120);
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
+  
+  /* DEBUG */
+  for (int i = 0; i < 66; i++) {
+    Serial.print(registerBitDuration[i]);
+  }
+  Serial.println("");
+/* DEBUG */
   
   /* Convert recorded durations to actual bits */
   // Shift registerBitDuration[] left to get rid of the start-bit
@@ -245,9 +250,11 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
-    Serial.write(registerByte[i]);
-    delay(2);  // Give the computer some time to catch up
+    Serial.print(registerByte[i], HEX);
+    Serial.print(' ');
+//    delay(5);  // Give the computer some time to catch up
   }
+  Serial.println("");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
