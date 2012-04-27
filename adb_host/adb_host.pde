@@ -210,7 +210,7 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
  * So, this function needs to be re-worked to chop the start and end bits off the transmission,
  * NOT off bits 0 and 65!
  *
- */
+ */               ///////////////////////////////////////////
 
 void relayADB() {  // Relays ADB data from peripherals over the serial port
   
@@ -220,11 +220,12 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
   for (uint8_t i = 0; i < 66; i++) {
-    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 200);
+    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 240);
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
   
+//------------------------------------------------>
   /* Convert recorded durations to actual bits */
   // Shift registerBitDuration[] left to get rid of the start-bit
   for (uint8_t i = 0; i < 64; i++) {
@@ -254,6 +255,7 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
     // Assign the temporary byte's value to the real byte
     registerByte[a] = tempByte;
   }
+//--------------------------------------------------------->
   
   /* Send the read bytes from a peripheral's register over the serial port */
   for (uint8_t i = 0; i < 8; i++) {
