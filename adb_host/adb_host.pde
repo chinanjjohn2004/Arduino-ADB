@@ -44,7 +44,7 @@
  */
 
 /***** Declarations *****/
-const uint8_t ADB_pin = 2;  // Connect the ADB line to the Arduino's pin 2
+const uint8_t ADB_PIN = 2;  // Connect the ADB line to the Arduino's pin 2
 
 const uint8-t BITBUFFERSIZE = 100;
 uint8_t registerBitDuration[BITBUFFERSIZE];  // Data recieved from a peripheral's register.
@@ -86,24 +86,24 @@ void loop() {
 
 // Attention //
 void ADBattention() {
-  // Attention signal pulls ADB_pin low for 800us
-  digitalWrite(ADB_pin, LOW);
+  // Attention signal pulls ADB_PIN low for 800us
+  digitalWrite(ADB_PIN, LOW);
   delayMicroseconds(800);
 }
 
 // Sync //
 void ADBsync() {
   // Sync signal goes high for 65us
-  digitalWrite(ADB_pin, HIGH);
+  digitalWrite(ADB_PIN, HIGH);
   delayMicroseconds(65);
 }
 
 // Global Reset //
 void ADBglobalReset() {
-  // Initiate a global reset (ADB_pin goes low for 3ms and returns high)
-  digitalWrite(ADB_pin, LOW);
+  // Initiate a global reset (ADB_PIN goes low for 3ms and returns high)
+  digitalWrite(ADB_PIN, LOW);
   delay(3);
-  digitalWrite(ADB_pin, HIGH);
+  digitalWrite(ADB_PIN, HIGH);
   delay(5);  // Take it easy, give the line a rest. It woke up on the wrong side of the bed.
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,22 +117,22 @@ void ADBstartstopBit() {
   // I'm assuming a start bit is identical to a stop bit, since there isn't
   // any specific timing included in the AGttMFH. Figure 8-13 (on page 313)
   // shows the start bit like the stop bit.
-  digitalWrite(ADB_pin, LOW);
+  digitalWrite(ADB_PIN, LOW);
   delayMicroseconds(70);        // Stop bit low time is 70us long, not 65us
-  digitalWrite(ADB_pin, HIGH);  // We keep the line high for "stop to start" time
+  digitalWrite(ADB_PIN, HIGH);  // We keep the line high for "stop to start" time
 }
 
 void ADBtruePulse() {
-  digitalWrite(ADB_pin, LOW);
+  digitalWrite(ADB_PIN, LOW);
   delayMicroseconds(35);
-  digitalWrite(ADB_pin, HIGH);
+  digitalWrite(ADB_PIN, HIGH);
   delayMicroseconds(65);
 }
 
 void ADBfalsePulse() {
-  digitalWrite(ADB_pin, LOW);
+  digitalWrite(ADB_PIN, LOW);
   delayMicroseconds(65);
-  digitalWrite(ADB_pin, HIGH);
+  digitalWrite(ADB_PIN, HIGH);
   delayMicroseconds(35);
 }
  //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,13 +143,13 @@ void ADBfalsePulse() {
  ******************************////////////////////////////////////////////////////////////////////
 
 void setBusAsOutput() {  // Set the ADB bus as an output (commanding peripherals)
-  pinMode(ADB_pin, OUTPUT);
-  digitalWrite(ADB_pin, HIGH);  // When the ADB pin is not being used, set it high
+  pinMode(ADB_PIN, OUTPUT);
+  digitalWrite(ADB_PIN, HIGH);  // When the ADB pin is not being used, set it high
 }
 
 void setBusAsInput() {  // Set the ADB bus as an input (reading data from peripherals)
-  pinMode(ADB_pin, INPUT);
-  digitalWrite(ADB_pin, HIGH);  // Keep the bus held high
+  pinMode(ADB_PIN, INPUT);
+  digitalWrite(ADB_PIN, HIGH);  // Keep the bus held high
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -215,13 +215,13 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
 
 void relayADB() {  // Relays ADB data from peripherals over the serial port
   
-  /* Set the ADB_pin to an input */
+  /* Set the ADB_PIN to an input */
   setBusAsInput();
   
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
   for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {
-    registerBitDuration[i] = pulseIn(ADB_pin, LOW, 240);
+    registerBitDuration[i] = pulseIn(ADB_PIN, LOW, 240);
   }
   setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
