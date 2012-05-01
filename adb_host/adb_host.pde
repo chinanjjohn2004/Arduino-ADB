@@ -44,13 +44,14 @@
  */
 
 /***** Declarations *****/
-const uint8_t ADB_PIN = 2;  // Connect the ADB line to the Arduino's pin 2
+const uint8_t ADB_OUT = 2;  // Connect the ADB line to the Arduino's pin 2
+const uint8_t ADB_IN  = 3;
 
-const uint8-t BITBUFFERSIZE = 100;  // Minimum of 66 (to allow for 8 bytes of device data + 2 start/stop bits)
-uint8_t registerBitDuration[BITBUFFERSIZE];  // Data recieved from a peripheral's register.
-boolean registerBit[64]; // Where the converted durations are stored.
-byte registerByte[8];    // ADB device data is converted to bytes and stored here (can send max 8 bytes)
-
+const uint8_t BITBUFFERSIZE = 100;  // Minimum of 66 (to allow for 8 bytes of device data + 2 start/stop bits)
+  // Declare variables
+  uint8_t rawData[BITBUFFERSIZE] = {0};  // Data recieved from a peripheral's register.
+  byte registerByte[8] = {0};    // ADB device data is converted to bytes and stored here (can send max 8 bytes)
+ 
 
 /***** Setup *****/
 void setup() {
@@ -58,8 +59,9 @@ void setup() {
   // Initialize the serial port
   Serial.begin(115200);
   
-  // Start the bus as an output
-  setBusAsOutput();
+  // Input/Outputs
+  pinMode(ADB_OUT, OUTPUT);
+  pinMode(ADB_IN, INPUT);
   
   // Do a global reset so all devices are in vanilla mode
   ADBglobalReset();
@@ -86,25 +88,23 @@ void loop() {
 
 // Attention //
 void ADBattention() {
-  // Attention signal pulls ADB_PIN low for 800us
-  digitalWrite(ADB_PIN, LOW);
+  // Attention signal pulls ADB low for 800us
+  digitalWrite(ADB_OUT, HIGH);
   delayMicroseconds(800);
 }
 
 // Sync //
 void ADBsync() {
   // Sync signal goes high for 65us
-  digitalWrite(ADB_PIN, HIGH);
+  digitalWrite(ADB_OUT, LOW);
   delayMicroseconds(65);
 }
 
 // Global Reset //
 void ADBglobalReset() {
-  // Initiate a global reset (ADB_PIN goes low for 3ms and returns high)
-  digitalWrite(ADB_PIN, LOW);
+  // Initiate a global reset (ADB_OUT goes low for 3ms and returns high)
+  digitalWrite(ADB_OUT, HIGH);
   delay(3);
-  digitalWrite(ADB_PIN, HIGH);
-  delay(5);  // Take it easy, give the line a rest. It woke up on the wrong side of the bed.
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -117,61 +117,30 @@ void ADBstartstopBit() {
   // I'm assuming a start bit is identical to a stop bit, since there isn't
   // any specific timing included in the AGttMFH. Figure 8-13 (on page 313)
   // shows the start bit like the stop bit.
-  digitalWrite(ADB_PIN, LOW);
+  digitalWrite(ADB_OUT, HIGH);
   delayMicroseconds(70);        // Stop bit low time is 70us long, not 65us
-  digitalWrite(ADB_PIN, HIGH);  // We keep the line high for "stop to start" time
+  digitalWrite(ADB_OUT, LOW);
 }
 
 void ADBtruePulse() {
-  digitalWrite(ADB_PIN, LOW);
+  digitalWrite(ADB_OUT, HIGH);
   delayMicroseconds(35);
-  digitalWrite(ADB_PIN, HIGH);
+  digitalWrite(ADB_OUT, LOW);
   delayMicroseconds(65);
 }
 
 void ADBfalsePulse() {
-  digitalWrite(ADB_PIN, LOW);
+  digitalWrite(ADB_OUT, HIGH);
   delayMicroseconds(65);
-  digitalWrite(ADB_PIN, HIGH);
+  digitalWrite(ADB_OUT, LOW);
   delayMicroseconds(35);
 }
  //////////////////////////////////////////////////////////////////////////////////////////////////
- 
-
-/******************************
- * Set bus as input or output *
- ******************************////////////////////////////////////////////////////////////////////
-
-void setBusAsOutput() {  // Set the ADB bus as an output (commanding peripherals)
-  pinMode(ADB_PIN, OUTPUT);
-  digitalWrite(ADB_PIN, HIGH);  // When the ADB pin is not being used, set it high
-}
-
-void setBusAsInput() {  // Set the ADB bus as an input (reading data from peripherals)
-  pinMode(ADB_PIN, INPUT);
-  digitalWrite(ADB_PIN, HIGH);  // Keep the bus held high
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 /******************************
  * Sending and recieving data *
  ******************************////////////////////////////////////////////////////////////////////
-/* Commented out because the Arduino is now acting like a 'passthrough' to the ADB
-// User-friendly version of sendCommandByte()
-// ! WARNING - DON'T PASS INVALID ARGUMENTS INTO THIS FUNCTION!
-void sendCommand(byte deviceAddr, byte command, byte reg) {
-  // Make a temporary byte, and form it by bit-shifting the device address, command, and register
-  byte tempByte = B00000000;                             // Ex.  tempByte = 00000000
-  tempByte = deviceAddr;                                 //      tempByte = 00000011, deviceAddr = B0011
-  tempByte <<= 2;  // Commands are 2 bits long           //      tempByte = 00001100
-  tempByte += command;                                   //      tempByte = 00001111, command = B11
-  tempByte <<= 2;  // Registers are 2 bits long          //      tempByte = 00111100
-  tempByte += reg;                                       //      tempByte = 00111101, register = B01  
-  
-  // Pass the temporary byte into sendCommandByte()
-  sendCommandByte(tempByte);
-}*/
 
 void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Location info is contained
                                          // within the byte. (See page 315 of AGttMFH)
@@ -215,45 +184,73 @@ void sendCommandByte(byte byteToSend) {  // Sends a byte over the ADB bus. Locat
 
 void relayADB() {  // Relays ADB data from peripherals over the serial port
   
-  /* Set the ADB_PIN to an input */
-  setBusAsInput();
-  
   /* Read the ADB pulse durations from the peripheral into the registerBit[] array */
   // We'll convert the durations into bits during a time-insensitive moment, later on.
   for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {
-    registerBitDuration[i] = pulseIn(ADB_PIN, LOW, 240);
+    rawData[i] = pulseIn(ADB_IN, LOW, 150);
     // Some of these pulses could be zero at the beginning or end, so they will need to be cleaned
     // before further processnig.
   }
-  setBusAsOutput();  // Put the bus back the way it was found (as a HIGH output)
   // <-- Everything after this is time-insensitive --> //
-  
+
 //------------------------------------------------>
 // New algorithm idea:
 //    1. Read the data into RAWDATA[]. (array names are ambiguous)
 //    2. What if the first bits timeout, so they are set equal to zero?
 //   2a. Convert the delay times recorded in RAWDATA[] to bit values. If ==35, =1. If ==65, =0.
 //       If ==else, =0. 
+  for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {  // See page 313, Figure 8-13 of AGttMFH
+    if ((rawData[i] >= 25) && (rawData[i] <=45))  // 10us tolerance
+      rawData[i] = 1;
+    else
+      rawData[i] = 0;
+  }
+  
+
+
 //    3. Count to RAWDATA[index] where the first non-zero value occurs. It will be equal to one,
 //       because this is the start bit.
 //           (Example: RAWDATA[3] == 1; STARTBITINDEX = 3;) (RAWDATA[] == {0, 0, 0, 1, .. };)
+  uint8_t startBitIndex = 0;  // Location of the start bit in rawData[]
+  while (0 == rawData[startBitIndex]) { // Count to the start bit location in rawData[]
+    startBitIndex++;
+  }
+
 //    4. Count to RAWDATA[index] where the last non-zero value occurs (hint: count backwards).
 //       It will be equal to one, because this is the end bit.
 //           (Example: RAWDATA[20] == 1; ENDBITINDEX = 20;)
+  uint8_t endBitIndex = BITBUFFERSIZE - 1;  // Location of the end bit in rawData[]
+  while (0 == rawData[endBitIndex]) {  // Count to the end bit location in rawData[]
+    endBitIndex--;
+  }
+
 //    5. Shift every value in RAWDATA[] STARTBITINDEX+1 places to the left, so RAWDATA[0] will be the
 //       first valuable bit in the data packet (the +1 will chop off the start bit).
 //           (Example: RAWDATA[i] = RAWDATA[i+STARTBITINDEX+1];)
+  for (uint8_t i = 0; i < BITBUFFERSIZE; i++) {
+    rawData[i] = rawData[i + startBitIndex+1];  // I hope this copies null characters when it reaches the end
+  }
+
 //    6. Adjust ENDBITINDEX by the amount we shifted left, because it now is too high.
 //           (Example: ENDBITINDEX = ENDBITINDEX - (STARTBITINDEX + 1);)
+  endBitIndex -= (startBitIndex + 1);
+
 //    7. Now, RAWDATA[0] holds the first bit of viable data. The last bit of viable data is held
 //       in RAWDATA[ENDBITINDEX-1].
 //    8. Knowing this, initialize VIABLEDATA[ENDBITINDEX-1] so it can't hold anything BUT our viable
 //       data.
+  byte viableData[endBitIndex-1];
+
 //    9. In a loop, copy RAWDATA[i] into VIABLEDATA[i], ENDBITINDEX amount of times.
 //           (Example: for (int i=0; i < ENDBITINDEX; i++) { VIABLEDATA[i] = RAWDATA[i]; } )
+  for (uint8_t i = 0; i < endBitIndex; i++)
+    viableData[i] = rawData[i];
+
 //   10. VIABLEDATA[] is now completely filled with meaty bits.
 //   11. Find the number of bytes that are stored in VIABLEDATA[].
 //           (Example: VIABLEBYTES = ENDBITINDEX / 8;)  // ENDBITINDEX is also VIABLEBYTES.length!
+  uint8_t viableBytes = endBitIndex / 8;
+
 //   12. Convert the bits stored in VIABLEDATA[] into bytes, and store those bytes in registerByte[CURRENTBYTE].
 //           (Example:      for (int CURRENTBYTE = 0; CURRENTBYTE < VIABLEBYTES; CURRENTBYTE++) {
 //                          byte TEMPBYTE = 0;
@@ -265,6 +262,17 @@ void relayADB() {  // Relays ADB data from peripherals over the serial port
 //                          }
 //
 //
+  for (uint8_t currentByte = 0; currentByte < viableBytes; currentByte++) {
+    byte tempByte = 0;
+    for (uint8_t i = ((currentByte+1)*8)-8; i < (currentByte+1)*8; i++) {  // i is the current bit number
+      tempByte += viableData[i];
+      tempByte <<= 1;
+    }
+    registerByte[currentByte] = tempByte;  // Doesn't copy all eight possible bytes, only the ones which were
+                                           // transmitted. This means that registerByte[x] will most likely
+                                           // have a null value.
+  }
+
 
 //-----------------END NEW ALGORITHM--------------------->
 
